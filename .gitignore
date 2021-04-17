@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+abf
 
 # Test binary, built with `go test -c`
 *.test
@@ -15,3 +16,6 @@
 # vendor/
 
 /docs/note.md
+
+# Log files
+*.log

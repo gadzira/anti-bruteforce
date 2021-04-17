@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Logger LoggerConf
-	Server server
+	Logger  LoggerConf
+	Server  server
+	Storage metapart
 }
 
 type LoggerConf struct {
@@ -26,6 +27,13 @@ type server struct {
 	Port string
 }
 
+type metapart struct {
+	N   int
+	M   int
+	K   int
+	TTL string
+}
+
 func NewConfig(fileName string) Config {
 	var confDir = "../../configs" // nolint:gofumpt
 	conFile := filepath.Join(confDir, fileName)
@@ -36,7 +44,8 @@ func NewConfig(fileName string) Config {
 	}
 
 	return Config{
-		Server: config.Server,
-		Logger: config.Logger,
+		Server:  config.Server,
+		Logger:  config.Logger,
+		Storage: config.Storage,
 	}
 }

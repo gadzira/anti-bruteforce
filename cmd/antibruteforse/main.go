@@ -12,6 +12,7 @@ import (
 	"github.com/gadzira/anti-bruteforce/internal/app"
 	"github.com/gadzira/anti-bruteforce/internal/logger"
 	internalhttp "github.com/gadzira/anti-bruteforce/internal/server/http"
+	"github.com/gadzira/anti-bruteforce/internal/storage"
 	"go.uber.org/zap"
 )
 
@@ -38,10 +39,11 @@ func main() {
 	adr := fmt.Sprintf(":%s", config.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	fmt.Println(config.Server.Port)
 
-	a := app.New()
-	server := internalhttp.NewServer(a, logg)
+	bs := storage.New(config.Storage.N, config.Storage.M, config.Storage.K, config.Storage.TTL, logg)
+
+	a := app.New(logg, &bs)
+	server := internalhttp.NewServer(logg, a)
 	go func() {
 		signals := make(chan os.Signal, 1)
 		signal.Notify(signals, syscall.SIGINT, syscall.SIGHUP)
