@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gadzira/anti-bruteforce/internal/app"
+	"github.com/gadzira/anti-bruteforce/internal/db"
 	"github.com/gadzira/anti-bruteforce/internal/logger"
 	internalhttp "github.com/gadzira/anti-bruteforce/internal/server/http"
 	"github.com/gadzira/anti-bruteforce/internal/storage"
@@ -24,7 +25,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-	fmt.Println("configFile:", configFile)
 	config := NewConfig(configFile)
 	l := logger.New(
 		config.Logger.LogFile,
@@ -37,12 +37,21 @@ func main() {
 	)
 	logg := l.InitLogger()
 	adr := fmt.Sprintf(":%s", config.Server.Port)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	bs := storage.New(config.Storage.N, config.Storage.M, config.Storage.K, config.Storage.TTL, logg)
+	var sql db.DataBase
 
-	a := app.New(logg, &bs)
+	sql = db.New(logg)
+	err := sql.Connect(ctx, config.DataBase.DSN)
+	if err != nil {
+		fmt.Printf("can't connect to DB: %s\n", err)
+		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
+	}
+
+	bs := storage.New(config.Storage.N, config.Storage.M, config.Storage.K, config.Storage.TTL, logg)
+	a := app.New(ctx, logg, &bs, &sql)
 	server := internalhttp.NewServer(logg, a)
 	go func() {
 		signals := make(chan os.Signal, 1)
