@@ -2,17 +2,14 @@ package internalhttp
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
-	"strings"
 
 	"github.com/gadzira/anti-bruteforce/internal/app"
+	"github.com/gadzira/anti-bruteforce/internal/db"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-)
-
-const (
-	sep string = "#"
 )
 
 type Application interface{}
@@ -21,7 +18,6 @@ type Server struct {
 	Router *mux.Router
 	log    *zap.Logger
 	app    *app.App
-	// Application
 }
 
 func NewServer(l *zap.Logger, a *app.App) *Server {
@@ -51,10 +47,14 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) initializeRoutes() {
-	// нужно прокинуть Storage в LoginHandler, а там вызвать метод AddNewBucket
 	router := mux.NewRouter()
 	router.Handle("/hello", HelloWorldHandler()).Methods("GET")
 	router.Handle("/login", LoginHandler(s.app)).Methods("POST")
+	router.Handle("/rst_bckt", ResetBucketHandler(s.app)).Methods("POST")
+	router.Handle("/add_bl", AddToListHandler(s.app, "black")).Methods("POST")
+	router.Handle("/add_wl", AddToListHandler(s.app, "white")).Methods("POST")
+	router.Handle("/del_bl", RemoveFromListHandler(s.app, "black")).Methods("DELETE")
+	router.Handle("/del_wl", RemoveFromListHandler(s.app, "white")).Methods("DELETE")
 	router.Use(s.loggingMiddleware)
 	s.Router = router
 }
@@ -70,29 +70,64 @@ func LoginHandler(a *app.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		log, pass, _ := r.BasicAuth()
-		arg := []string{r.RemoteAddr, sep, log, sep, pass}
-		builder := strings.Builder{}
-		for _, i := range arg {
-			builder.WriteString(i)
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			a.Logger.Error("can't get ip from r.RemoteAddr" + err.Error())
+			return
 		}
-		longString := builder.String()
-		a.Storage.AddNewBucket(longString)
-		// app.AddBucket(longString)
 
-		// var b models.Bucket
-		// b.Login = log
-		// b.Password = pass
-		// b.SourceIP = r.RemoteAddr
+		bl, err := a.DB.CheckInList(a.Ctx, ip, "black")
+		if err != nil {
+			a.Logger.Error("can't check black list in db" + err.Error())
+			return
+		}
 
-		// fmt.Println(b)
+		wl, err := a.DB.CheckInList(a.Ctx, ip, "white")
+		if err != nil {
+			a.Logger.Error("can't check white list in db" + err.Error())
+			return
+		}
 
-		//nolint:errcheck
-		// w.Write([]byte("Created!"))
+		if bl {
+			w.Write([]byte(fmt.Sprintf("ok=%t", false)))
+		} else if wl {
+			w.Write([]byte(fmt.Sprintf("ok=%t", true)))
+		} else {
+			cr, _ := a.Storage.CheckRequest(log, pass, r.RemoteAddr)
+			resultOfCheck := fmt.Sprintf("ok=%t", cr)
+			w.Write([]byte(resultOfCheck))
+		}
+	})
+}
 
-		payload, _ := json.Marshal("OK")
-		w.Write([]byte(payload))
+func ResetBucketHandler(a *app.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		key := params.Get("key")
+		a.Storage.ResetBucket(key)
+	})
+}
 
-		// w.WriteHeader(http.StatusOK)
-		// w.WriteHeader(http.StatusInternalServerError)
+func AddToListHandler(a *app.App, list string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		e := db.Entry{
+			IP:   params.Get("ip"),
+			Mask: params.Get("mask"),
+			List: list,
+		}
+		a.DB.AddToList(a.Ctx, &e)
+	})
+}
+
+func RemoveFromListHandler(a *app.App, list string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		e := db.Entry{
+			IP:   params.Get("ip"),
+			Mask: params.Get("mask"),
+			List: list,
+		}
+		a.DB.RemoveFromList(a.Ctx, &e)
 	})
 }

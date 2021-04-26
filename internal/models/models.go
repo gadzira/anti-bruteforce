@@ -3,9 +3,11 @@ package models
 import "time"
 
 type Bucket struct {
-	NС         int
-	MС         int
-	KС         int
+	Limit      int
 	CreateTime time.Time
-	TTL        float64
+	TTL        string
+}
+
+type Result struct {
+	ResultOfCheck string
 }

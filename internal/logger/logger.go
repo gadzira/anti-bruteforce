@@ -36,7 +36,6 @@ zlog.Info("info")
 zlog.Error("error.....")
 */
 import (
-	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -71,7 +70,6 @@ func TimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 }
 
 func (l *Logger) InitLogger() *zap.Logger {
-	fmt.Println("Log file:", l.FileName)
 	hook := lumberjack.Logger{
 		Filename:   l.FileName,
 		MaxSize:    l.MaxAge,
