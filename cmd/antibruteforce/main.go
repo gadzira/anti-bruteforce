@@ -46,7 +46,6 @@ func main() {
 	sql = db.New(logg)
 	err := sql.Connect(ctx, config.DataBase.DSN)
 	if err != nil {
-		fmt.Printf("can't connect to DB: %s\n", err)
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
 	}
 
@@ -81,4 +80,5 @@ func main() {
 	}
 
 	logg.Info("server is riseup on %s ...", zap.String("port", adr))
+
 }

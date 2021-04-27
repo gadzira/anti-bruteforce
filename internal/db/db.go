@@ -94,7 +94,6 @@ func (s *DataBase) CheckInList(ctx context.Context, ip string, list string) (boo
 		}
 
 		if n.Contains(net.ParseIP(ip)) {
-			// fmt.Printf("IP %s in network %s\n", net.ParseIP(ip), n)
 			return true, nil
 		}
 	}
