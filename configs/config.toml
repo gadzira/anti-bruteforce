@@ -1,6 +1,6 @@
 [logger]
 level = "INFO"
-logfile = "antibruteforce.log"
+logfile = "./log/antibruteforce.log"
 MaxSize = 1024
 MaxBackups = 3
 MaxAge = 7

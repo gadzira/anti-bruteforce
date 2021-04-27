@@ -1,41 +1,7 @@
 package logger
 
-/*
-example:
-
-// log one for DEBUG
-var w zapcore.WriteSyncer
-w = zapcore.AddSync(os.Stdout)
-
-log1 :=  newZapCore(true, zapcore.DebugLevel, w)    // this log level is debug and output is STDOUT
-
-// log two for Error
-w := zapcore.AddSync(&lumberjack.Logger{
-  Filename:   "/var/log/myapp/foo.log",
-  MaxSize:    500, // megabytes
-  MaxBackups: 3,
-  MaxAge:     28, // days
-})
-core := zapcore.NewCore(
-  zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-  w,
-  zap.ErrorLevel,
-)
-log2 := zap.New(core)
-
-//
-
-	opts := []zap.Option{}
-      opts = append(opts, zap.AddCaller())
-
-
-zlog :=    zap.New(zapcore.NewTee(log1, log2), opts...)
-
-//   just use this, log will send out to file and stdout with define log level
-zlog.Info("info")
-zlog.Error("error.....")
-*/
 import (
+	"os"
 	"time"
 
 	"go.uber.org/zap"
@@ -70,6 +36,7 @@ func TimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 }
 
 func (l *Logger) InitLogger() *zap.Logger {
+
 	hook := lumberjack.Logger{
 		Filename:   l.FileName,
 		MaxSize:    l.MaxAge,
@@ -79,7 +46,8 @@ func (l *Logger) InitLogger() *zap.Logger {
 		Compress:   l.Compress,
 	}
 
-	w := zapcore.AddSync(&hook)
+	// w := zapcore.AddSync(&hook)
+	h := zapcore.AddSync(&hook)
 	var level zapcore.Level
 
 	switch l.LogLevel {
@@ -97,11 +65,15 @@ func (l *Logger) InitLogger() *zap.Logger {
 
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = TimeEncoder
+
+	nmws := zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(h))
+
 	core := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(encoderConfig),
-		w,
+		nmws,
 		level,
 	)
+
 	logger := zap.New(core)
 	logger.Info("DefaultLogger init success")
 
