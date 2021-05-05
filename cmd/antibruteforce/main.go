@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/gadzira/anti-bruteforce/internal/app"
-	"github.com/gadzira/anti-bruteforce/internal/db"
+	conf "github.com/gadzira/anti-bruteforce/internal/config"
+	"github.com/gadzira/anti-bruteforce/internal/database"
 	"github.com/gadzira/anti-bruteforce/internal/helpers"
 	"github.com/gadzira/anti-bruteforce/internal/logger"
 	internalhttp "github.com/gadzira/anti-bruteforce/internal/server/http"
@@ -38,7 +39,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	config := NewConfig(configFile)
+	config := conf.NewFromFile(configFile)
 	l := logger.New(
 		config.Logger.LogFile,
 		config.Logger.Level,
@@ -49,12 +50,11 @@ func main() {
 		config.Logger.Compress,
 	)
 	logg := l.InitLogger()
-	adr := fmt.Sprintf(":%s", config.Server.Port)
-
+	adr := fmt.Sprintf("127.0.0.1:%s", config.Server.Port)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sql := db.New(logg)
+	sql := database.New(logg)
 	err := sql.Connect(ctx, config.DataBase.DSN)
 	if err != nil {
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
@@ -73,16 +73,32 @@ func main() {
 		bs.ResetBucket(resetBucket)
 	case addWhite != "":
 		e := helpers.MakeEntry(addWhite, "white")
-		sql.AddToList(ctx, e)
+		err := sql.AddToList(ctx, e)
+		if err != nil {
+			a.Logger.Error("can't add to list\n" + err.Error())
+			return
+		}
 	case addBlack != "":
 		e := helpers.MakeEntry(addBlack, "black")
-		sql.AddToList(ctx, e)
+		err := sql.AddToList(ctx, e)
+		if err != nil {
+			a.Logger.Error("can't add to list\n" + err.Error())
+			return
+		}
 	case delWhite != "":
 		e := helpers.MakeEntry(addBlack, "black")
-		sql.RemoveFromList(ctx, e)
+		err := sql.RemoveFromList(ctx, e)
+		if err != nil {
+			a.Logger.Error("can't remove from list\n" + err.Error())
+			return
+		}
 	case delBlack != "":
 		e := helpers.MakeEntry(addBlack, "black")
-		sql.RemoveFromList(ctx, e)
+		err := sql.RemoveFromList(ctx, e)
+		if err != nil {
+			a.Logger.Error("can't remove from list\n" + err.Error())
+			return
+		}
 	default:
 		logg.Info("additional arguments not given yet")
 	}
@@ -115,5 +131,4 @@ func main() {
 	}
 
 	logg.Info("server is riseup on %s ...", zap.String("port", adr))
-
 }

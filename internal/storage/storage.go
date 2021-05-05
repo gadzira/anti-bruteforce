@@ -9,18 +9,18 @@ import (
 	"go.uber.org/zap"
 )
 
-type StorageOfBuckets struct {
-	bucket  map[string]*models.Bucket
+type OfBuckets struct {
+	Bucket  map[string]*models.Bucket
 	mu      sync.RWMutex
-	log     *zap.Logger
+	Log     *zap.Logger
 	N, M, K int
 	TTL     string
 }
 
-func New(n, m, k int, ttl string, l *zap.Logger) StorageOfBuckets {
-	return StorageOfBuckets{
-		bucket: map[string]*models.Bucket{},
-		log:    l,
+func New(n, m, k int, ttl string, l *zap.Logger) OfBuckets {
+	return OfBuckets{
+		Bucket: map[string]*models.Bucket{},
+		Log:    l,
 		N:      n,
 		M:      m,
 		K:      k,
@@ -28,86 +28,120 @@ func New(n, m, k int, ttl string, l *zap.Logger) StorageOfBuckets {
 	}
 }
 
-func (s *StorageOfBuckets) CheckRequest(log, pass, ip string) (bool, error) {
+func (s *OfBuckets) CheckRequest(log, pass, ip string) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	var incomingParams = map[string]string{"log": log, "pass": pass, "ip": ip}
-
 	s.GarbageCollector()
 
-	for k, v := range incomingParams {
-		switch k {
-		case "log":
-			updateableBucket, ok := s.bucket[v]
-			if !ok {
-				s.bucket[v] = createBucket(s.N, s.TTL)
-			} else {
-				// TODO: Add GC for all cases
-				// If limit != 0 AND req in one minutes from bucket CreateTime - reduce limit
-				if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-					updateableBucket.Limit -= 1
-				}
-				if updateableBucket.Limit == 0 {
-					return false, nil
-				}
-				// but req not in time span - we will await GC
-			}
-		case "pass":
-			updateableBucket, ok := s.bucket[v]
-			if !ok {
-				s.bucket[v] = createBucket(s.M, s.TTL)
-			} else {
-				if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-					updateableBucket.Limit -= 1
-				} else {
-					return false, nil
-				}
-			}
-		case "ip":
-			updateableBucket, ok := s.bucket[v]
-			if !ok {
-				s.bucket[v] = createBucket(s.K, s.TTL)
-			} else {
-				if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-					updateableBucket.Limit -= 1
-				} else {
-					return false, nil
-				}
-			}
-		default:
-			s.log.Panic("unexpected case")
-		}
+	_, err := s.checkIncomingParameters(log, s.N)
+	if err != nil {
+		return false, err
 	}
+
+	_, err = s.checkIncomingParameters(pass, s.M)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = s.checkIncomingParameters(ip, s.K)
+	if err != nil {
+		return false, err
+	}
+
+	// var incomingParams = map[string]string{"log": log, "pass": pass, "ip": ip}
+	// for k, v := range incomingParams {
+	// 	switch k {
+	// 	case "log":
+	// 		updateableBucket, ok := s.Bucket[v]
+	// 		if !ok {
+	// 			s.Bucket[v] = CreateBucket(s.N, s.TTL)
+	// 		} else {
+	// 			if updateableBucket.Limit == 0 {
+	// 				return false, nil
+	// 			}
+	// 			if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
+	// 				updateableBucket.Limit--
+	// 			}
+	// 		}
+	// 	case "pass":
+	// 		updateableBucket, ok := s.Bucket[v]
+	// 		if !ok {
+	// 			s.Bucket[v] = CreateBucket(s.M, s.TTL)
+	// 		} else {
+	// 			if updateableBucket.Limit == 0 {
+	// 				return false, nil
+	// 			}
+	// 			if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
+	// 				updateableBucket.Limit--
+	// 			}
+	// 		}
+	// 	case "ip":
+	// 		updateableBucket, ok := s.Bucket[v]
+	// 		if !ok {
+	// 			s.Bucket[v] = CreateBucket(s.K, s.TTL)
+	// 		} else {
+	// 			if updateableBucket.Limit == 0 {
+	// 				return false, nil
+	// 			}
+	// 			if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
+	// 				updateableBucket.Limit--
+	// 			}
+	// 		}
+	// 	default:
+	// 		s.Log.Panic("unexpected case")
+	// 	}
+	// }
+
 	// TODO: remove later
-	for k, v := range s.bucket {
+	for k, v := range s.Bucket {
 		fmt.Printf("KEY:%s\t VALUE:%v\n", k, v)
 	}
 	fmt.Println()
+
 	return true, nil
 }
 
-func (s *StorageOfBuckets) ResetBucket(key string) {
+func (s *OfBuckets) ResetBucket(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.bucket, key)
+	delete(s.Bucket, key)
 }
 
-// garbage collector which we deserve, actually
-func (s *StorageOfBuckets) GarbageCollector() {
-	if len(s.bucket) != 0 {
-		for i, j := range s.bucket {
+func (s *OfBuckets) ShowBuckets() map[string]*models.Bucket {
+	return s.Bucket
+}
+
+func (s *OfBuckets) GarbageCollector() {
+	if len(s.Bucket) != 0 {
+		for i, j := range s.Bucket {
 			ct := time.Now().UTC()
 			ttl, _ := time.ParseDuration(j.TTL)
-			itemForDelete, ok := s.bucket[i]
+			itemForDelete, ok := s.Bucket[i]
 			if ok && !inTimeSpan(itemForDelete.CreateTime, itemForDelete.CreateTime.Add(ttl), ct) {
-				delete(s.bucket, i)
+				delete(s.Bucket, i)
 			}
 		}
 	}
 }
 
-func createBucket(l int, ttl string) *models.Bucket {
+func (s *OfBuckets) checkIncomingParameters(key string, i int) (bool, error) {
+	b, ok := s.Bucket[key]
+	if !ok {
+		s.Bucket[key] = CreateBucket(i, s.TTL)
+		return true, nil
+	} else {
+		if b.Limit == 0 {
+			return false, nil
+		}
+		if b.Limit != 0 && inTimeSpan(b.CreateTime, b.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
+			b.Limit--
+			// return true, nil
+		}
+	}
+	return true, nil
+}
+
+func CreateBucket(l int, ttl string) *models.Bucket {
 	return &models.Bucket{
 		Limit:      l - 1,
 		TTL:        ttl,
@@ -119,7 +153,13 @@ func inTimeSpan(start, end, check time.Time) bool {
 	return check.After(start) && check.Before(end)
 }
 
-// func findEndTime(ct time.Time, s string) time.Time {
-// ttl, _ := time.ParseDuration(s)
-// return ct.Add(ttl)
+// func (s *StorageOfBuckets) processIncommingParams(b *models.Bucket) (bool, error) {
+// 	fmt.Println("Limit:", b.Limit)
+// 	if b.Limit == 0 {
+// 		return false, nil
+// 	}
+// 	if b.Limit != 0 && inTimeSpan(b.CreateTime, b.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
+// 		b.Limit -= 1
+// 	}
+// 	return true, nil
 // }

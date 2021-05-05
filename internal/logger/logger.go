@@ -36,7 +36,6 @@ func TimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 }
 
 func (l *Logger) InitLogger() *zap.Logger {
-
 	hook := lumberjack.Logger{
 		Filename:   l.FileName,
 		MaxSize:    l.MaxAge,

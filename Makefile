@@ -20,7 +20,15 @@ run-img: build-img
 	docker run $(DOCKER_IMG)
 
 test:
-	go test -race ./internal/...
+	go test ./... -v -count=1 -race -timeout=1m .
+
+int-tests:
+	docker rm -f test-postgres
+	docker run --name test-postgres -p 5432:5432 -e POSTGRES_PASSWORD=dbpass -d postgres
+	sleep 3
+	goose up
+	go test ./... -v -count=1 -race -timeout=1m .
+
 
 install-lint-deps:
 	(which golangci-lint > /dev/null) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.37.0

@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/gadzira/anti-bruteforce/internal/db"
+	"github.com/gadzira/anti-bruteforce/internal/database"
 	"github.com/gadzira/anti-bruteforce/internal/storage"
 	"go.uber.org/zap"
 )
@@ -11,14 +11,11 @@ import (
 type App struct {
 	Ctx     context.Context
 	Logger  *zap.Logger
-	Storage *storage.StorageOfBuckets
-	DB      *db.DataBase
+	Storage *storage.OfBuckets
+	DB      *database.DataBase
 }
 
-type Storage interface {
-}
-
-func New(ctx context.Context, l *zap.Logger, s *storage.StorageOfBuckets, db *db.DataBase) *App {
+func New(ctx context.Context, l *zap.Logger, s *storage.OfBuckets, db *database.DataBase) *App {
 	return &App{
 		Ctx:     ctx,
 		Logger:  l,

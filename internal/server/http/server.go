@@ -2,12 +2,13 @@ package internalhttp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 
 	"github.com/gadzira/anti-bruteforce/internal/app"
-	"github.com/gadzira/anti-bruteforce/internal/db"
+	"github.com/gadzira/anti-bruteforce/internal/database"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
@@ -26,8 +27,6 @@ func NewServer(l *zap.Logger, a *app.App) *Server {
 		log: l,
 	}
 }
-
-// тут нужно создать экземпляр конфига
 
 func (s *Server) Start(ctx context.Context, addr string) error {
 	s.initializeRoutes()
@@ -49,6 +48,7 @@ func (s *Server) Stop(ctx context.Context) error {
 func (s *Server) initializeRoutes() {
 	router := mux.NewRouter()
 	router.Handle("/hello", HelloWorldHandler()).Methods("GET")
+	router.Handle("/list_of_bucket", ListOfBucketHandler(s.app)).Methods("GET")
 	router.Handle("/login", LoginHandler(s.app)).Methods("POST")
 	router.Handle("/rst_bckt", ResetBucketHandler(s.app)).Methods("POST")
 	router.Handle("/add_bl", AddToListHandler(s.app, "black")).Methods("POST")
@@ -66,13 +66,35 @@ func HelloWorldHandler() http.Handler {
 	})
 }
 
+func ListOfBucketHandler(a *app.App) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//nolint:errcheck
+		bl := a.Storage.ShowBuckets()
+		tm := make(map[string]int)
+		for k, v := range bl {
+			tm[k] = v.Limit
+		}
+		j, err := json.Marshal(tm)
+		if err != nil {
+			a.Logger.Error("can't marshal to jsom\n" + err.Error())
+			return
+		}
+		_, err = w.Write(j)
+		// _, err = w.Write([]byte(j))
+		if err != nil {
+			a.Logger.Error("can't write\n" + err.Error())
+			return
+		}
+	})
+}
+
 func LoginHandler(a *app.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		log, pass, _ := r.BasicAuth()
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
-			a.Logger.Error("can't get ip from r.RemoteAddr" + err.Error())
+			a.Logger.Error("can't get ip from r.RemoteAddr\n" + err.Error())
 			return
 		}
 
@@ -88,14 +110,27 @@ func LoginHandler(a *app.App) http.Handler {
 			return
 		}
 
-		if bl {
-			w.Write([]byte(fmt.Sprintf("ok=%t", false)))
-		} else if wl {
-			w.Write([]byte(fmt.Sprintf("ok=%t", true)))
-		} else {
+		switch {
+		case bl:
+			_, err := w.Write([]byte(fmt.Sprintf("ok=%t", false)))
+			if err != nil {
+				a.Logger.Error("can't write\n" + err.Error())
+				return
+			}
+		case wl:
+			_, err := w.Write([]byte(fmt.Sprintf("ok=%t", true)))
+			if err != nil {
+				a.Logger.Error("can't write\n" + err.Error())
+				return
+			}
+		default:
 			cr, _ := a.Storage.CheckRequest(log, pass, r.RemoteAddr)
 			resultOfCheck := fmt.Sprintf("ok=%t", cr)
-			w.Write([]byte(resultOfCheck))
+			_, err := w.Write([]byte(resultOfCheck))
+			if err != nil {
+				a.Logger.Error("can't write\n" + err.Error())
+				return
+			}
 		}
 	})
 }
@@ -105,29 +140,42 @@ func ResetBucketHandler(a *app.App) http.Handler {
 		params := r.URL.Query()
 		key := params.Get("key")
 		a.Storage.ResetBucket(key)
+		_, err := w.Write([]byte("done"))
+		if err != nil {
+			a.Logger.Error("can't write\n" + err.Error())
+			return
+		}
 	})
 }
 
 func AddToListHandler(a *app.App, list string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
-		e := db.Entry{
+		e := database.Entry{
 			IP:   params.Get("ip"),
 			Mask: params.Get("mask"),
 			List: list,
 		}
-		a.DB.AddToList(a.Ctx, &e)
+		err := a.DB.AddToList(a.Ctx, &e)
+		if err != nil {
+			a.Logger.Error("can't add to list\n" + err.Error())
+			return
+		}
 	})
 }
 
 func RemoveFromListHandler(a *app.App, list string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
-		e := db.Entry{
+		e := database.Entry{
 			IP:   params.Get("ip"),
 			Mask: params.Get("mask"),
 			List: list,
 		}
-		a.DB.RemoveFromList(a.Ctx, &e)
+		err := a.DB.RemoveFromList(a.Ctx, &e)
+		if err != nil {
+			a.Logger.Error("can't remove from list\n" + err.Error())
+			return
+		}
 	})
 }
