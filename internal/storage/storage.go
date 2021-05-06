@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -28,77 +27,33 @@ func New(n, m, k int, ttl string, l *zap.Logger) OfBuckets {
 	}
 }
 
-func (s *OfBuckets) CheckRequest(log, pass, ip string) (bool, error) {
+func (s *OfBuckets) CheckRequest(log, pass, ip string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.GarbageCollector()
 
-	_, err := s.checkIncomingParameters(log, s.N)
-	if err != nil {
-		return false, err
+	ok := s.checkIncomingParameters(log, s.N)
+	if !ok {
+		return ok
 	}
 
-	_, err = s.checkIncomingParameters(pass, s.M)
-	if err != nil {
-		return false, err
+	ok = s.checkIncomingParameters(pass, s.M)
+	if !ok {
+		return ok
 	}
 
-	_, err = s.checkIncomingParameters(ip, s.K)
-	if err != nil {
-		return false, err
+	ok = s.checkIncomingParameters(ip, s.K)
+	if !ok {
+		return ok
 	}
-
-	// var incomingParams = map[string]string{"log": log, "pass": pass, "ip": ip}
-	// for k, v := range incomingParams {
-	// 	switch k {
-	// 	case "log":
-	// 		updateableBucket, ok := s.Bucket[v]
-	// 		if !ok {
-	// 			s.Bucket[v] = CreateBucket(s.N, s.TTL)
-	// 		} else {
-	// 			if updateableBucket.Limit == 0 {
-	// 				return false, nil
-	// 			}
-	// 			if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-	// 				updateableBucket.Limit--
-	// 			}
-	// 		}
-	// 	case "pass":
-	// 		updateableBucket, ok := s.Bucket[v]
-	// 		if !ok {
-	// 			s.Bucket[v] = CreateBucket(s.M, s.TTL)
-	// 		} else {
-	// 			if updateableBucket.Limit == 0 {
-	// 				return false, nil
-	// 			}
-	// 			if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-	// 				updateableBucket.Limit--
-	// 			}
-	// 		}
-	// 	case "ip":
-	// 		updateableBucket, ok := s.Bucket[v]
-	// 		if !ok {
-	// 			s.Bucket[v] = CreateBucket(s.K, s.TTL)
-	// 		} else {
-	// 			if updateableBucket.Limit == 0 {
-	// 				return false, nil
-	// 			}
-	// 			if updateableBucket.Limit != 0 && inTimeSpan(updateableBucket.CreateTime, updateableBucket.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-	// 				updateableBucket.Limit--
-	// 			}
-	// 		}
-	// 	default:
-	// 		s.Log.Panic("unexpected case")
-	// 	}
-	// }
 
 	// TODO: remove later
-	for k, v := range s.Bucket {
-		fmt.Printf("KEY:%s\t VALUE:%v\n", k, v)
-	}
-	fmt.Println()
+	// for k, v := range s.Bucket {
+	// 	fmt.Printf("KEY:%s\t VALUE:%v\n", k, v)
+	// }
+	// fmt.Println()
 
-	return true, nil
+	return true
 }
 
 func (s *OfBuckets) ResetBucket(key string) {
@@ -124,21 +79,20 @@ func (s *OfBuckets) GarbageCollector() {
 	}
 }
 
-func (s *OfBuckets) checkIncomingParameters(key string, i int) (bool, error) {
+func (s *OfBuckets) checkIncomingParameters(key string, i int) bool {
 	b, ok := s.Bucket[key]
 	if !ok {
 		s.Bucket[key] = CreateBucket(i, s.TTL)
-		return true, nil
-	} else {
-		if b.Limit == 0 {
-			return false, nil
-		}
-		if b.Limit != 0 && inTimeSpan(b.CreateTime, b.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-			b.Limit--
-			// return true, nil
-		}
+		return true
 	}
-	return true, nil
+	if b.Limit == 0 {
+		return false
+	}
+	if b.Limit != 0 && inTimeSpan(b.CreateTime, b.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
+		b.Limit--
+	}
+
+	return true
 }
 
 func CreateBucket(l int, ttl string) *models.Bucket {
@@ -152,14 +106,3 @@ func CreateBucket(l int, ttl string) *models.Bucket {
 func inTimeSpan(start, end, check time.Time) bool {
 	return check.After(start) && check.Before(end)
 }
-
-// func (s *StorageOfBuckets) processIncommingParams(b *models.Bucket) (bool, error) {
-// 	fmt.Println("Limit:", b.Limit)
-// 	if b.Limit == 0 {
-// 		return false, nil
-// 	}
-// 	if b.Limit != 0 && inTimeSpan(b.CreateTime, b.CreateTime.Add(time.Minute*1), time.Now().UTC()) {
-// 		b.Limit -= 1
-// 	}
-// 	return true, nil
-// }

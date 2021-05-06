@@ -7,8 +7,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/gadzira/anti-bruteforce/internal/app"
 	"github.com/gadzira/anti-bruteforce/internal/database"
+	"github.com/gadzira/anti-bruteforce/internal/domain"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
@@ -18,10 +18,10 @@ type Application interface{}
 type Server struct {
 	Router *mux.Router
 	log    *zap.Logger
-	app    *app.App
+	app    *domain.App
 }
 
-func NewServer(l *zap.Logger, a *app.App) *Server {
+func NewServer(l *zap.Logger, a *domain.App) *Server {
 	return &Server{
 		app: a,
 		log: l,
@@ -66,7 +66,7 @@ func HelloWorldHandler() http.Handler {
 	})
 }
 
-func ListOfBucketHandler(a *app.App) http.Handler {
+func ListOfBucketHandler(a *domain.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//nolint:errcheck
 		bl := a.Storage.ShowBuckets()
@@ -80,7 +80,6 @@ func ListOfBucketHandler(a *app.App) http.Handler {
 			return
 		}
 		_, err = w.Write(j)
-		// _, err = w.Write([]byte(j))
 		if err != nil {
 			a.Logger.Error("can't write\n" + err.Error())
 			return
@@ -88,7 +87,7 @@ func ListOfBucketHandler(a *app.App) http.Handler {
 	})
 }
 
-func LoginHandler(a *app.App) http.Handler {
+func LoginHandler(a *domain.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		log, pass, _ := r.BasicAuth()
@@ -124,7 +123,7 @@ func LoginHandler(a *app.App) http.Handler {
 				return
 			}
 		default:
-			cr, _ := a.Storage.CheckRequest(log, pass, r.RemoteAddr)
+			cr := a.Storage.CheckRequest(log, pass, r.RemoteAddr)
 			resultOfCheck := fmt.Sprintf("ok=%t", cr)
 			_, err := w.Write([]byte(resultOfCheck))
 			if err != nil {
@@ -135,7 +134,7 @@ func LoginHandler(a *app.App) http.Handler {
 	})
 }
 
-func ResetBucketHandler(a *app.App) http.Handler {
+func ResetBucketHandler(a *domain.App) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 		key := params.Get("key")
@@ -148,7 +147,7 @@ func ResetBucketHandler(a *app.App) http.Handler {
 	})
 }
 
-func AddToListHandler(a *app.App, list string) http.Handler {
+func AddToListHandler(a *domain.App, list string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 		e := database.Entry{
@@ -164,7 +163,7 @@ func AddToListHandler(a *app.App, list string) http.Handler {
 	})
 }
 
-func RemoveFromListHandler(a *app.App, list string) http.Handler {
+func RemoveFromListHandler(a *domain.App, list string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 		e := database.Entry{

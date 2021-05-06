@@ -20,7 +20,8 @@ run-img: build-img
 	docker run $(DOCKER_IMG)
 
 test:
-	go test ./... -v -count=1 -race -timeout=1m .
+	go test -run TestCreateBucket  -v -count=1 -race -timeout=1m internal/storage/storage_test.go
+	go test -run TestHelloWorldHandler  -v -count=1 -race -timeout=1m internal/server/http/server_test.go
 
 int-tests:
 	docker rm -f test-postgres

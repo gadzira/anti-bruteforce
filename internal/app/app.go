@@ -1,25 +1,23 @@
 package app
 
 import (
-	"context"
+	"fmt"
 
-	"github.com/gadzira/anti-bruteforce/internal/database"
-	"github.com/gadzira/anti-bruteforce/internal/storage"
-	"go.uber.org/zap"
+	"github.com/gadzira/anti-bruteforce/internal/domain"
 )
 
-type App struct {
-	Ctx     context.Context
-	Logger  *zap.Logger
-	Storage *storage.OfBuckets
-	DB      *database.DataBase
-}
+func New(i interface{}) *domain.App {
+	str := fmt.Sprintf("%v", i)
+	fmt.Println(str)
 
-func New(ctx context.Context, l *zap.Logger, s *storage.OfBuckets, db *database.DataBase) *App {
-	return &App{
-		Ctx:     ctx,
-		Logger:  l,
-		Storage: s,
-		DB:      db,
+	a, ok := i.(*domain.App)
+	if !ok {
+		return nil
+	}
+	return &domain.App{
+		Ctx:     a.Ctx,
+		Logger:  a.Logger,
+		Storage: a.Storage,
+		DB:      a.DB,
 	}
 }

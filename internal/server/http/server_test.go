@@ -8,6 +8,7 @@ import (
 
 	"github.com/gadzira/anti-bruteforce/internal/app"
 	"github.com/gadzira/anti-bruteforce/internal/database"
+	"github.com/gadzira/anti-bruteforce/internal/domain"
 	"github.com/gadzira/anti-bruteforce/internal/logger"
 	internalhttp "github.com/gadzira/anti-bruteforce/internal/server/http"
 	"github.com/gadzira/anti-bruteforce/internal/storage"
@@ -60,7 +61,14 @@ func TestLoginHandler(t *testing.T) {
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
 	}
 
-	a := app.New(ctx, logg, &bs, &sql)
+	na := &domain.App{
+		Ctx:     ctx,
+		Logger:  logg,
+		Storage: &bs,
+		DB:      &sql,
+	}
+	a := app.New(na)
+
 	handler := http.HandlerFunc(internalhttp.LoginHandler(a).ServeHTTP)
 	handler.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusOK {
@@ -71,6 +79,49 @@ func TestLoginHandler(t *testing.T) {
 	if rr.Body.String() != `ok=true` {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), `ok=true`)
+	}
+}
+
+func TestLoginHandlerNegative(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://127.0.0.1:8800/login", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.SetBasicAuth("user", "p@$$w0rd")
+	req.RemoteAddr = RemAddr
+	rr := httptest.NewRecorder()
+	l := logger.New("test.log", "INFO", 1024, 1, 1, false, false)
+	logg := l.InitLogger()
+	bs := storage.New(1, 100, 1000, "5m", logg)
+	sql := database.New(logg)
+	err = sql.Connect(ctx, "host=localhost port=5432 user=postgres password=dbpass sslmode=disable")
+	if err != nil {
+		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
+	}
+
+	na := &domain.App{
+		Ctx:     ctx,
+		Logger:  logg,
+		Storage: &bs,
+		DB:      &sql,
+	}
+
+	a := app.New(na)
+	handler := http.HandlerFunc(internalhttp.LoginHandler(a).ServeHTTP)
+	for i := 0; i < bs.N+1; i++ {
+		handler.ServeHTTP(rr, req)
+	}
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v\n want %v\n",
+			status, http.StatusOK)
+	}
+	if rr.Body.String() != `ok=trueok=false` {
+		t.Errorf("handler returned unexpected body: got %v\n want %v\n",
+			rr.Body.String(), `ok=trueok=false`)
 	}
 }
 
@@ -85,8 +136,15 @@ func TestResetBucketHandler(t *testing.T) {
 	if err != nil {
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
 	}
-	a := app.New(ctx, logg, &bs, &sql)
 
+	na := &domain.App{
+		Ctx:     ctx,
+		Logger:  logg,
+		Storage: &bs,
+		DB:      &sql,
+	}
+
+	a := app.New(na)
 	req1, err := http.NewRequestWithContext(ctx, "POST", "http://127.0.0.1:8800/login", nil)
 	if err != nil {
 		t.Fatal(err)

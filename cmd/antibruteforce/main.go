@@ -12,6 +12,7 @@ import (
 	"github.com/gadzira/anti-bruteforce/internal/app"
 	conf "github.com/gadzira/anti-bruteforce/internal/config"
 	"github.com/gadzira/anti-bruteforce/internal/database"
+	"github.com/gadzira/anti-bruteforce/internal/domain"
 	"github.com/gadzira/anti-bruteforce/internal/helpers"
 	"github.com/gadzira/anti-bruteforce/internal/logger"
 	internalhttp "github.com/gadzira/anti-bruteforce/internal/server/http"
@@ -61,7 +62,13 @@ func main() {
 	}
 
 	bs := storage.New(config.Storage.N, config.Storage.M, config.Storage.K, config.Storage.TTL, logg)
-	a := app.New(ctx, logg, &bs, &sql)
+	na := &domain.App{
+		Ctx:     ctx,
+		Logger:  logg,
+		Storage: &bs,
+		DB:      &sql,
+	}
+	a := app.New(na)
 	server := internalhttp.NewServer(logg, a)
 
 	switch {
