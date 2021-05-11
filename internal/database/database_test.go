@@ -36,12 +36,6 @@ func (suite *DataBaseSuite) TestAddToListSuite() {
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
 	}
 
-	// e := &database.Entry{
-	// 	IP:   "172.0.0.1",
-	// 	Mask: "255.255.255.0",
-	// 	List: "black",
-	// }
-
 	err = sql.AddToList(ctx, suite.e)
 	suite.NoErrorf(err, "expected no error, but got %w", err)
 }
