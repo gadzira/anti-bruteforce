@@ -82,29 +82,25 @@ func main() {
 		e := helpers.MakeEntry(addWhite, "white")
 		err := sql.AddToList(ctx, e)
 		if err != nil {
-			a.Logger.Error("can't add to list\n" + err.Error())
-			return
+			a.Logger.Fatal("can't add to list\n" + err.Error())
 		}
 	case addBlack != "":
 		e := helpers.MakeEntry(addBlack, "black")
 		err := sql.AddToList(ctx, e)
 		if err != nil {
-			a.Logger.Error("can't add to list\n" + err.Error())
-			return
+			a.Logger.Fatal("can't add to list\n" + err.Error())
 		}
 	case delWhite != "":
 		e := helpers.MakeEntry(addBlack, "black")
 		err := sql.RemoveFromList(ctx, e)
 		if err != nil {
-			a.Logger.Error("can't remove from list\n" + err.Error())
-			return
+			a.Logger.Fatal("can't remove from list\n" + err.Error())
 		}
 	case delBlack != "":
 		e := helpers.MakeEntry(addBlack, "black")
 		err := sql.RemoveFromList(ctx, e)
 		if err != nil {
-			a.Logger.Error("can't remove from list\n" + err.Error())
-			return
+			a.Logger.Fatal("can't remove from list\n" + err.Error())
 		}
 	default:
 		logg.Info("additional arguments not given yet")

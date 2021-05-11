@@ -72,12 +72,6 @@ func (s *DataBase) RemoveFromList(ctx context.Context, e *Entry) error {
 }
 
 func (s *DataBase) CheckInList(ctx context.Context, ip string, list string) (bool, error) {
-	//
-	if err := s.db.Ping(); err != nil {
-		s.db.Close()
-		return false, err
-	}
-	//
 	rows, err := s.db.QueryContext(ctx, `SELECT cidr FROM list WHERE list = $1`, list)
 	if err != nil {
 		return false, fmt.Errorf("can't check IP in %s list: %w", list, err)

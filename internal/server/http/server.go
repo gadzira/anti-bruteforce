@@ -99,13 +99,13 @@ func LoginHandler(a *domain.App) http.Handler {
 
 		bl, err := a.DB.CheckInList(a.Ctx, ip, "black")
 		if err != nil {
-			a.Logger.Error("can't check black list in db" + err.Error())
+			a.Logger.Error("can't check black list in db: " + err.Error())
 			return
 		}
 
 		wl, err := a.DB.CheckInList(a.Ctx, ip, "white")
 		if err != nil {
-			a.Logger.Error("can't check white list in db" + err.Error())
+			a.Logger.Error("can't check white list in db: " + err.Error())
 			return
 		}
 
