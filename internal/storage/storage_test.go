@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// 1. Create bucket.
 func TestCreateBucket(t *testing.T) {
 	testStorage := make(map[string]*models.Bucket)
 	testStorage["SomeLogin"] = storage.CreateBucket(10, "10m")
@@ -18,7 +17,6 @@ func TestCreateBucket(t *testing.T) {
 	require.Equal(t, "10m", testBucket.TTL, "expected TTL 10m, actually: %d", testBucket.TTL)
 }
 
-// 2. Reset bucket.
 func TestResetBucket(t *testing.T) {
 	logg := logger.New("test.log", "INFO", 1024, 1, 1, false, false)
 	s := storage.New(10, 100, 1000, "12m", logg.InitLogger())

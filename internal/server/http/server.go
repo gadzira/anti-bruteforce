@@ -7,8 +7,8 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/gadzira/anti-bruteforce/internal/app"
 	"github.com/gadzira/anti-bruteforce/internal/database"
-	"github.com/gadzira/anti-bruteforce/internal/domain"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
@@ -18,10 +18,10 @@ type Application interface{}
 type Server struct {
 	Router *mux.Router
 	log    *zap.Logger
-	app    *domain.App
+	app    *app.Application
 }
 
-func NewServer(l *zap.Logger, a *domain.App) *Server {
+func NewServer(l *zap.Logger, a *app.Application) *Server {
 	return &Server{
 		app: a,
 		log: l,
@@ -66,10 +66,10 @@ func HelloWorldHandler() http.Handler {
 	})
 }
 
-func ListOfBucketHandler(a *domain.App) http.Handler {
+func ListOfBucketHandler(a *app.Application) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//nolint:errcheck
-		bl := a.Storage.ShowBuckets()
+		bl := a.ShowBucket()
 		tm := make(map[string]int)
 		for k, v := range bl {
 			tm[k] = v.Limit
@@ -87,7 +87,7 @@ func ListOfBucketHandler(a *domain.App) http.Handler {
 	})
 }
 
-func LoginHandler(a *domain.App) http.Handler {
+func LoginHandler(a *app.Application) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		log, pass, _ := r.BasicAuth()
@@ -123,7 +123,7 @@ func LoginHandler(a *domain.App) http.Handler {
 				return
 			}
 		default:
-			cr := a.Storage.CheckRequest(log, pass, r.RemoteAddr)
+			cr := a.CheckRequest(log, pass, r.RemoteAddr)
 			resultOfCheck := fmt.Sprintf("ok=%t", cr)
 			_, err := w.Write([]byte(resultOfCheck))
 			if err != nil {
@@ -134,11 +134,11 @@ func LoginHandler(a *domain.App) http.Handler {
 	})
 }
 
-func ResetBucketHandler(a *domain.App) http.Handler {
+func ResetBucketHandler(a *app.Application) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 		key := params.Get("key")
-		a.Storage.ResetBucket(key)
+		a.ResetBucket(key)
 		_, err := w.Write([]byte("done"))
 		if err != nil {
 			a.Logger.Error("can't write\n" + err.Error())
@@ -147,7 +147,7 @@ func ResetBucketHandler(a *domain.App) http.Handler {
 	})
 }
 
-func AddToListHandler(a *domain.App, list string) http.Handler {
+func AddToListHandler(a *app.Application, list string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 		e := database.Entry{
@@ -163,7 +163,7 @@ func AddToListHandler(a *domain.App, list string) http.Handler {
 	})
 }
 
-func RemoveFromListHandler(a *domain.App, list string) http.Handler {
+func RemoveFromListHandler(a *app.Application, list string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 		e := database.Entry{

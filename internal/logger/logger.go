@@ -45,7 +45,6 @@ func (l *Logger) InitLogger() *zap.Logger {
 		Compress:   l.Compress,
 	}
 
-	// w := zapcore.AddSync(&hook)
 	h := zapcore.AddSync(&hook)
 	var level zapcore.Level
 

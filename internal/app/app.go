@@ -1,23 +1,39 @@
 package app
 
 import (
-	"fmt"
+	"context"
 
+	"github.com/gadzira/anti-bruteforce/internal/database"
 	"github.com/gadzira/anti-bruteforce/internal/domain"
+	"github.com/gadzira/anti-bruteforce/internal/models"
+	"github.com/gadzira/anti-bruteforce/internal/storage"
+	"go.uber.org/zap"
 )
 
-func New(i interface{}) *domain.App {
-	str := fmt.Sprintf("%v", i)
-	fmt.Println(str)
+type Application struct {
+	Ctx     context.Context
+	Logger  *zap.Logger
+	DB      domain.DataBaseInterface
+	storage domain.StorageInterface
+}
 
-	a, ok := i.(*domain.App)
-	if !ok {
-		return nil
+func New(ctx context.Context, logger *zap.Logger, db database.DataBase, storage *storage.OfBuckets) *Application {
+	return &Application{
+		Ctx:     ctx,
+		Logger:  logger,
+		DB:      &db,
+		storage: storage,
 	}
-	return &domain.App{
-		Ctx:     a.Ctx,
-		Logger:  a.Logger,
-		Storage: a.Storage,
-		DB:      a.DB,
-	}
+}
+
+func (a *Application) ShowBucket() map[string]*models.Bucket {
+	return a.storage.ShowBuckets()
+}
+
+func (a *Application) CheckRequest(log, pass, ip string) bool {
+	return a.storage.CheckRequest(log, pass, ip)
+}
+
+func (a *Application) ResetBucket(key string) {
+	a.storage.ResetBucket(key)
 }

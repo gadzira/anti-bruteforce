@@ -8,7 +8,6 @@ import (
 
 	"github.com/gadzira/anti-bruteforce/internal/app"
 	"github.com/gadzira/anti-bruteforce/internal/database"
-	"github.com/gadzira/anti-bruteforce/internal/domain"
 	"github.com/gadzira/anti-bruteforce/internal/logger"
 	internalhttp "github.com/gadzira/anti-bruteforce/internal/server/http"
 	"github.com/gadzira/anti-bruteforce/internal/storage"
@@ -61,13 +60,7 @@ func TestLoginHandler(t *testing.T) {
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
 	}
 
-	na := &domain.App{
-		Ctx:     ctx,
-		Logger:  logg,
-		Storage: &bs,
-		DB:      &sql,
-	}
-	a := app.New(na)
+	a := app.New(ctx, logg, sql, &bs)
 
 	handler := http.HandlerFunc(internalhttp.LoginHandler(a).ServeHTTP)
 	handler.ServeHTTP(rr, req)
@@ -102,14 +95,7 @@ func TestLoginHandlerNegative(t *testing.T) {
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
 	}
 
-	na := &domain.App{
-		Ctx:     ctx,
-		Logger:  logg,
-		Storage: &bs,
-		DB:      &sql,
-	}
-
-	a := app.New(na)
+	a := app.New(ctx, logg, sql, &bs)
 	handler := http.HandlerFunc(internalhttp.LoginHandler(a).ServeHTTP)
 	for i := 0; i < bs.N+1; i++ {
 		handler.ServeHTTP(rr, req)
@@ -137,14 +123,7 @@ func TestResetBucketHandler(t *testing.T) {
 		logg.Fatal("can't connect to DB: %s\n", zap.String("err", err.Error()))
 	}
 
-	na := &domain.App{
-		Ctx:     ctx,
-		Logger:  logg,
-		Storage: &bs,
-		DB:      &sql,
-	}
-
-	a := app.New(na)
+	a := app.New(ctx, logg, sql, &bs)
 	req1, err := http.NewRequestWithContext(ctx, "POST", "http://127.0.0.1:8800/login", nil)
 	if err != nil {
 		t.Fatal(err)
