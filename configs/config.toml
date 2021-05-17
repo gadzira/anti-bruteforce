@@ -1,0 +1,20 @@
+[logger]
+level = "INFO"
+logfile = "./log/antibruteforce.log"
+MaxSize = 1024
+MaxBackups = 3
+MaxAge = 7
+LocalTime = true
+Compress = true
+
+[server]
+port = "8800"
+
+[storage]
+N = 10
+M = 100
+K = 1000
+TTL = "1m10s"
+
+[database]
+dsn = "host=localhost port=5432 user=postgres password=dbpass sslmode=disable"
